@@ -59,19 +59,58 @@ def _ensure_venv_packages():
 _ensure_venv_packages()
 
 from flask import Flask
-from routes.mon_an_routes import mon_an_bp
-from routes.auth_routes import auth_bp
+from routes.admin_auth import admin_auth_bp
+from routes.food_routes import food_bp
+from routes.category_routes import category_bp
+from routes.ai_predictions_routes import ai_predictions_bp
+from routes.banners_routes import banners_bp
+from routes.favorites_routes import favorites_bp
+from routes.food_images_routes import food_images_bp
+from routes.food_ingredients_routes import food_ingredients_bp
+from routes.ingredients_routes import ingredients_bp
+from routes.users_routes import users_bp
+from routes.recipes_routes import recipes_bp
+from routes.reviews_routes import reviews_bp
 from flask_cors import CORS
+from routes.regions_routes import regions_bp
+from routes.nutrition_routes import nutrition_bp
 
 app = Flask(__name__)
 
 # Allow CORS for development frontend (Vite default port 5173); configurable via ENV
-frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-CORS(app, resources={r"/*": {"origins": [frontend_origin]}})
+# FRONTEND_ORIGIN may be a single origin or a comma-separated list of origins.
+frontend_origin_env = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173")
+frontend_origins = [o.strip() for o in frontend_origin_env.split(',') if o.strip()]
+if not frontend_origins:
+    frontend_origins = ["http://localhost:5173"]
+CORS(app, resources={r"/*": {"origins": frontend_origins}})
 
-app.register_blueprint(mon_an_bp)
-app.register_blueprint(auth_bp)
+# Expose API under /api so frontend (Vite) can call e.g. /api/auth/login
+app.register_blueprint(admin_auth_bp, url_prefix='/api')
+app.register_blueprint(category_bp, url_prefix='/api')
+app.register_blueprint(food_bp, url_prefix='/api')
+app.register_blueprint(ai_predictions_bp, url_prefix='/api')
+app.register_blueprint(banners_bp, url_prefix='/api')
+app.register_blueprint(favorites_bp, url_prefix='/api')
+app.register_blueprint(food_images_bp, url_prefix='/api')
+app.register_blueprint(food_ingredients_bp, url_prefix='/api')
+app.register_blueprint(users_bp, url_prefix='/api')
+app.register_blueprint(ingredients_bp, url_prefix='/api')
+app.register_blueprint(recipes_bp, url_prefix='/api')
+app.register_blueprint(reviews_bp, url_prefix='/api')
+app.register_blueprint(regions_bp, url_prefix='/api')
+app.register_blueprint(nutrition_bp, url_prefix='/api')
 
 if __name__ == "__main__":
     # Host 0.0.0.0 để có thể truy cập từ máy khác trong LAN nếu cần
+    # Print registered routes to help debugging 404s on /api/* endpoints
+    try:
+        rules = sorted(app.url_map.iter_rules(), key=lambda r: r.rule)
+        print("Registered routes:")
+        for r in rules:
+            methods = ','.join(sorted(r.methods))
+            print(f"{r.rule} -> endpoint={r.endpoint} methods={methods}")
+    except Exception:
+        pass
+
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)

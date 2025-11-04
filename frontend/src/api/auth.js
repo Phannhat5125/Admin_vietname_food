@@ -1,58 +1,51 @@
-import apiClient from './axios';
+import request from './request';
 
+export async function login({ username, email, password }) {
+  const payload = {};
+  if (username) payload.username = username;
+  if (email) payload.email = email;
+  payload.password = password;
+
+  const data = await request('/api/login', { method: 'POST', body: payload });
+  if (data && data.token) {
+    localStorage.setItem('auth_token', data.token);
+    if (data.user) localStorage.setItem('auth_user', JSON.stringify(data.user));
+  }
+  return data;
+}
+
+export function logout() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+}
+
+export function getToken() {
+  return localStorage.getItem('auth_token');
+}
+
+export function getCurrentUser() {
+  const raw = localStorage.getItem('auth_user');
+  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+
+export default { login, logout, getToken, getCurrentUser };
+
+export async function register({ username, email, password, full_name }) {
+  const payload = { username, email, password, full_name };
+  const data = await request('/api/auth/register', { method: 'POST', body: payload });
+  return data;
+}
+
+export function currentUser() {
+  return getCurrentUser();
+}
+
+// Compatibility object
 export const AuthAPI = {
-  // Login
-  login: async (credentials) => {
-    try {
-      const response = await apiClient.post('/auth/login', credentials);
-      if (response.access_token) {
-        localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('admin_data', JSON.stringify(response.admin));
-      }
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  // Register new admin
-  register: async (userData) => {
-    try {
-      const response = await apiClient.post('/auth/register', userData);
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  // Get current admin profile
-  getProfile: async () => {
-    try {
-      const response = await apiClient.get('/auth/profile');
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  // Logout
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('admin_data');
-    return Promise.resolve();
-  },
-
-  // Check if user is authenticated
-  isAuthenticated: () => {
-    return !!localStorage.getItem('access_token');
-  },
-
-  // Get current user data from localStorage
-  getCurrentUser: () => {
-    const userData = localStorage.getItem('admin_data');
-    return userData ? JSON.parse(userData) : null;
-  },
+  login,
+  register,
+  logout,
+  getToken,
+  currentUser,
+  getCurrentUser
 };
-
-// Default export for backward compatibility
-export default AuthAPI;

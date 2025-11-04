@@ -4,54 +4,11 @@ import {
   Eye, UserPlus, 
   CheckCircle, XCircle, Calendar, User 
 } from 'lucide-react';
+import { Users } from '../api';
 
 const UserManagementPage = () => {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      username: 'nguyenvana',
-      email: 'a@gmail.com',
-      fullName: 'Nguyễn Văn A',
-      avatar: '🧑‍💻',
-      status: 'active',
-      createdAt: '2025-01-01',
-      lastLogin: '2025-11-03 09:30',
-      loginCount: 45
-    },
-    {
-      id: 2,
-      username: 'tranthib',
-      email: 'b@example.com',
-      fullName: 'Trần Thị B',
-      avatar: '👩‍💼',
-      status: 'locked',
-      createdAt: '2025-01-15',
-      lastLogin: '2025-10-28 14:20',
-      loginCount: 23
-    },
-    {
-      id: 3,
-      username: 'lequangc',
-      email: 'c@domain.com',
-      fullName: 'Lê Quang C',
-      avatar: '👨‍🎓',
-      status: 'active',
-      createdAt: '2024-12-10',
-      lastLogin: '2025-11-03 08:15',
-      loginCount: 152
-    },
-    {
-      id: 4,
-      username: 'phamthid',
-      email: 'd@test.com',
-      fullName: 'Phạm Thị D',
-      avatar: '👩‍🔬',
-      status: 'active',
-      createdAt: '2025-02-20',
-      lastLogin: '2025-11-02 16:45',
-      loginCount: 12
-    }
-  ]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [filteredUsers, setFilteredUsers] = useState(users);
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,7 +21,7 @@ const UserManagementPage = () => {
   const [newUser, setNewUser] = useState({
     username: '',
     email: '',
-    fullName: '',
+      full_name: '',
     password: ''
   });
 
@@ -74,7 +31,7 @@ const UserManagementPage = () => {
       const matchesSearch = 
         user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.fullName.toLowerCase().includes(searchTerm.toLowerCase());
+          user.full_name.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
       
@@ -84,42 +41,102 @@ const UserManagementPage = () => {
     setFilteredUsers(filtered);
   }, [users, searchTerm, statusFilter]);
 
-  const handleAddUser = () => {
-    const id = Math.max(...users.map(u => u.id)) + 1;
-    const user = {
-      ...newUser,
-      id,
-      avatar: '👤',
-      status: 'active',
-      createdAt: new Date().toISOString().split('T')[0],
+  // load users from backend on mount
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function apiToUI(u) {
+    return {
+      admin_id: u.id || u.user_id,
+      username: u.username,
+      email: u.email,
+      full_name: u.full_name || '',
+      avatar: u.avatar || null, // could be data URL or null
+      status: 'active', // backend doesn't have status field; default to active
+      createdAt: u.created_at ? (new Date(u.created_at).toISOString().split('T')[0]) : '',
       lastLogin: null,
-      loginCount: 0
+      loginCount: 0,
     };
-    
-    setUsers([...users, user]);
-    setNewUser({ username: '', email: '', fullName: '', password: '' });
-    setShowAddModal(false);
+  }
+
+  async function loadUsers() {
+    setLoading(true);
+    try {
+      const data = await Users.list({ limit: 200 });
+      // Users.list returns mapped objects (mapFromBackend) but our wrapper returns simplified objects
+      const mapped = data.map(apiToUI);
+      setUsers(mapped);
+    } catch (err) {
+      console.error('loadUsers', err);
+      alert('Lỗi khi tải người dùng: ' + (err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleAddUser = async () => {
+    try {
+      const payload = {
+        username: newUser.username,
+        email: newUser.email,
+        password: newUser.password,
+        full_name: newUser.full_name,
+      };
+      const resp = await Users.create(payload);
+      if (resp && resp.user_id) {
+        // fetch created user from backend
+        const created = await Users.get(resp.user_id);
+        const ui = apiToUI(created);
+        setUsers(prev => [ui, ...prev]);
+      } else {
+        // fallback: refresh list
+        await loadUsers();
+      }
+      setNewUser({ username: '', email: '', full_name: '', password: '' });
+      setShowAddModal(false);
+    } catch (err) {
+      console.error('create user', err);
+      alert('Lỗi khi tạo người dùng: ' + (err.message || err));
+    }
   };
 
-  const handleEditUser = () => {
-    setUsers(users.map(user => 
-      user.id === selectedUser.id ? selectedUser : user
-    ));
-    setShowEditModal(false);
-    setSelectedUser(null);
+  const handleEditUser = async () => {
+    try {
+      const id = selectedUser.admin_id;
+      const payload = {
+        username: selectedUser.username,
+        email: selectedUser.email,
+        full_name: selectedUser.full_name,
+      };
+      await Users.update(id, payload);
+      setUsers(users.map(user => user.admin_id === id ? { ...user, ...payload } : user));
+      setShowEditModal(false);
+      setSelectedUser(null);
+    } catch (err) {
+      console.error('update user', err);
+      alert('Lỗi khi cập nhật người dùng: ' + (err.message || err));
+    }
   };
 
   const handleToggleStatus = (userId) => {
+    // client-side only — backend has no status field
     setUsers(users.map(user => 
-      user.id === userId 
+      user.admin_id === userId 
         ? { ...user, status: user.status === 'active' ? 'locked' : 'active' }
         : user
     ));
   };
 
-  const handleDeleteUser = (userId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.')) {
-      setUsers(users.filter(user => user.id !== userId));
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.')) return;
+    try {
+      await Users.delete(userId);
+      setUsers(users.filter(user => user.admin_id !== userId));
+    } catch (err) {
+      console.error('delete user', err);
+      alert('Lỗi khi xóa người dùng: ' + (err.message || err));
     }
   };
 
@@ -259,13 +276,19 @@ const UserManagementPage = () => {
           </thead>
           <tbody>
             {filteredUsers.map(user => (
-              <tr key={user.id}>
+              <tr key={user.admin_id}>
                 <td>
-                  <div className="user-avatar">{user.avatar}</div>
+                  <div className="user-avatar">
+                    {user.avatar && typeof user.avatar === 'string' && user.avatar.startsWith('data:') ? (
+                      <img src={user.avatar} alt={user.username} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                    ) : (
+                      <span>{user.avatar || '👤'}</span>
+                    )}
+                  </div>
                 </td>
                 <td>
                   <div className="user-info">
-                    <div className="user-name">{user.fullName}</div>
+                    <div className="user-name">{user.full_name}</div>
                     <div className="username">@{user.username}</div>
                   </div>
                 </td>
@@ -308,9 +331,9 @@ const UserManagementPage = () => {
                     <button
                       className="action-btn edit"
                       onClick={() => {
-                        setSelectedUser({...user});
-                        setShowEditModal(true);
-                      }}
+                          setSelectedUser({...user});
+                          setShowEditModal(true);
+                        }}
                       title="Chỉnh sửa"
                     >
                       <Edit2 size={16} />
@@ -318,7 +341,7 @@ const UserManagementPage = () => {
                     
                     <button
                       className={`action-btn ${user.status === 'active' ? 'lock' : 'unlock'}`}
-                      onClick={() => handleToggleStatus(user.id)}
+                      onClick={() => handleToggleStatus(user.admin_id)}
                       title={user.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                     >
                       {user.status === 'active' ? <Lock size={16} /> : <Unlock size={16} />}
@@ -334,7 +357,7 @@ const UserManagementPage = () => {
                     
                     <button
                       className="action-btn delete"
-                      onClick={() => handleDeleteUser(user.id)}
+                      onClick={() => handleDeleteUser(user.admin_id)}
                       title="Xóa người dùng"
                     >
                       <Trash2 size={16} />
@@ -387,8 +410,8 @@ const UserManagementPage = () => {
                   <label>Họ và tên</label>
                   <input
                     type="text"
-                    value={newUser.fullName}
-                    onChange={(e) => setNewUser({...newUser, fullName: e.target.value})}
+                    value={newUser.full_name}
+                      onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
                     placeholder="Nguyễn Văn A"
                   />
                 </div>
@@ -417,7 +440,7 @@ const UserManagementPage = () => {
               <button 
                 className="btn primary" 
                 onClick={handleAddUser}
-                disabled={!newUser.username || !newUser.email || !newUser.fullName || !newUser.password}
+                disabled={!newUser.username || !newUser.email || !newUser.full_name || !newUser.password}
               >
                 Thêm người dùng
               </button>
@@ -464,8 +487,8 @@ const UserManagementPage = () => {
                   <label>Họ và tên</label>
                   <input
                     type="text"
-                    value={selectedUser.fullName}
-                    onChange={(e) => setSelectedUser({...selectedUser, fullName: e.target.value})}
+                    value={selectedUser.full_name}
+                    onChange={(e) => setSelectedUser({...selectedUser, full_name: e.target.value})}
                   />
                 </div>
                 
@@ -507,7 +530,7 @@ const UserManagementPage = () => {
         <div className="modal-overlay">
           <div className="modal-content large">
             <div className="modal-header">
-              <h2>Nhật ký hoạt động - {selectedUser.fullName}</h2>
+              <h2>Nhật ký hoạt động - {selectedUser.full_name}</h2>
               <button 
                 className="close-btn" 
                 onClick={() => setShowActivityModal(false)}

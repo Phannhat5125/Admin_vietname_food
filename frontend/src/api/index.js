@@ -1,69 +1,91 @@
-export { authApi as AuthAPI } from './authApi';
-export { foodApi as FoodAPI } from './foodApi';
-export { default as apiClient } from './axios';
+import * as AuthModule from './auth';
+import * as FoodsModule from './foods';
+import * as Categories from './categories';
+import * as FavoritesModule from './favorites';
+import * as UsersModule from './users';
+import * as FoodImagesModule from './food_images';
+import * as NutritionModule from './nutrition';
+import * as RecipesModule from './recipes';
+import * as RegionsModule from './regions';
+import request from './request';
 
-// Helper functions for API calls
-export const handleApiError = (error) => {
-  if (typeof error === 'string') {
-    return error;
-  }
-  
-  if (error?.error) {
-    return error.error;
-  }
-  
-  if (error?.message) {
-    return error.message;
-  }
-  
-  return 'Đã xảy ra lỗi không xác định';
+// Compatibility layer expected by existing components
+export const AuthAPI = {
+	login: AuthModule.login,
+	register: AuthModule.register || (async (p) => { throw new Error('register not implemented'); }),
+	logout: AuthModule.logout,
+	getToken: AuthModule.getToken,
+	currentUser: AuthModule.currentUser || AuthModule.getCurrentUser,
+	// Compatibility helper used by some components (e.g. ProtectedRoute)
+	isAuthenticated: () => {
+		try {
+			const token = AuthModule.getToken ? AuthModule.getToken() : null;
+			return !!token;
+		} catch (e) {
+			return false;
+		}
+	},
 };
 
-export const createFormData = (data) => {
-  const formData = new FormData();
-  
-  Object.keys(data).forEach(key => {
-    if (data[key] instanceof File) {
-      formData.append(key, data[key]);
-    } else if (Array.isArray(data[key])) {
-      data[key].forEach(item => formData.append(`${key}[]`, item));
-    } else if (data[key] !== null && data[key] !== undefined) {
-      formData.append(key, data[key]);
-    }
-  });
-  
-  return formData;
+export const FoodAPI = {
+	list: (opts) => FoodsModule.listFoods(opts),
+	get: (id) => FoodsModule.getFood(id),
+	create: (data) => FoodsModule.createFood(data),
+	update: (id, data) => FoodsModule.updateFood(id, data),
+	delete: (id) => FoodsModule.deleteFood(id),
 };
 
-// Map function for backend data
-export const mapFromBackend = (backendData) => {
-  if (!backendData) return null;
-  
-  return {
-    id: backendData.food_id,
-    name: backendData.food_name,
-    region: backendData.region,
-    location: backendData.location,
-    ingredients: backendData.ingredients,
-    calories: backendData.calories,
-    imageUrl: backendData.image_url,
-    createdBy: backendData.created_by,
-    createdAt: backendData.created_at,
-    updatedAt: backendData.updated_at,
-    creatorName: backendData.creator_name
-  };
+export const Favorites = {
+  list: (opts) => FavoritesModule.listFavorites(opts),
+  add: ({ user_id, food_id }) => FavoritesModule.addFavorite({ user_id, food_id }),
+  remove: (user_id, food_id) => FavoritesModule.removeFavorite(user_id, food_id),
 };
 
-// Map function to backend format
-export const mapToBackend = (frontendData) => {
-  if (!frontendData) return null;
-  
-  return {
-    food_name: frontendData.name,
-    region: frontendData.region,
-    location: frontendData.location,
-    ingredients: frontendData.ingredients,
-    calories: frontendData.calories,
-    image_url: frontendData.imageUrl
-  };
+export const Users = {
+	list: (opts) => UsersModule.listUsers(opts),
+	get: (id) => UsersModule.getUser(id),
+	create: (data) => UsersModule.createUser(data),
+	update: (id, data) => UsersModule.updateUser(id, data),
+	delete: (id) => UsersModule.deleteUser(id),
 };
+
+export const FoodImages = {
+	list: (opts) => FoodImagesModule.listImages(opts),
+	get: (id) => FoodImagesModule.getImage(id),
+	create: (data) => FoodImagesModule.createImage(data),
+	update: (id, data) => FoodImagesModule.updateImage(id, data),
+	delete: (id) => FoodImagesModule.deleteImage(id),
+};
+
+export const Nutrition = {
+	get: (food_id) => NutritionModule.getNutrition(food_id),
+	create: (data) => NutritionModule.createNutrition(data),
+	update: (food_id, data) => NutritionModule.updateNutrition(food_id, data),
+	delete: (food_id) => NutritionModule.deleteNutrition(food_id),
+};
+
+export const Recipes = {
+	list: (opts) => RecipesModule.listRecipes(opts),
+	get: (id) => RecipesModule.getRecipe(id),
+	create: (data) => RecipesModule.createRecipe(data),
+	update: (id, data) => RecipesModule.updateRecipe(id, data),
+	delete: (id) => RecipesModule.deleteRecipe(id),
+};
+
+export const Regions = {
+	list: (opts) => RegionsModule.listRegions(opts),
+	get: (id) => RegionsModule.getRegion(id),
+	create: (data) => RegionsModule.createRegion(data),
+	update: (id, data) => RegionsModule.updateRegion(id, data),
+	delete: (id) => RegionsModule.deleteRegion(id),
+};
+
+export const mapFromBackend = FoodsModule.mapFromBackend;
+
+export { Categories, request };
+
+export { Regions };
+
+// Named exports `Favorites` and `Users` are already declared above as `export const`.
+// Provide them also on the default export for compatibility with older imports.
+export default { AuthAPI, FoodAPI, Categories, request, Favorites, Users, FoodImages, Nutrition, Recipes, Regions };

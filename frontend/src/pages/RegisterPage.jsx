@@ -3,7 +3,7 @@ import './auth.css';
 import { AuthAPI } from '../api';
 
 const RegisterPage = () => {
-  const [fullName, setFullName] = useState('');
+  const [full_name, setFull_name] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,13 +18,13 @@ const RegisterPage = () => {
       return;
     }
     setLoading(true); setError('');
-    if (!fullName.trim() || !username.trim()) {
+    if (!full_name.trim() || !username.trim()) {
       setError('Vui lòng nhập Họ và Tên và Username');
       setLoading(false);
       return;
     }
     try {
-      await AuthAPI.register(username.trim(), email, password, fullName.trim());
+      await AuthAPI.register({ username: username.trim(), email, password, full_name: full_name.trim() });
       window.location.href = '/login';
     } catch (e) {
       setError(e.message);
@@ -42,8 +42,8 @@ const RegisterPage = () => {
             <span>Họ và Tên</span>
             <input
               type="text"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
+              value={full_name}
+              onChange={e => setFull_name(e.target.value)}
               required
               placeholder="Nguyễn Văn A"
             />

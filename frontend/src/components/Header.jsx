@@ -6,9 +6,9 @@ const Header = ({ isDark, toggleTheme, onMenuClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const currentUser = AuthAPI.currentUser();
 
-  const getInitials = (fullName) => {
-    if (!fullName) return 'U';
-    const words = fullName.trim().split(' ');
+  const getInitials = (full_name) => {
+    if (!full_name) return 'U';
+    const words = full_name.trim().split(' ');
     if (words.length === 1) return words[0].charAt(0).toUpperCase();
     return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
   };
@@ -42,9 +42,9 @@ const Header = ({ isDark, toggleTheme, onMenuClick }) => {
         
         <div className="user-profile">
           <div className="user-avatar-initials">
-            {getInitials(currentUser?.fullName)}
+            {getInitials(currentUser?.full_name)}
           </div>
-          <span className="user-name">{currentUser?.fullName || 'Người dùng'}</span>
+          <span className="user-name">{currentUser?.full_name || 'Người dùng'}</span>
         </div>
         
         <div className="theme-toggle">
